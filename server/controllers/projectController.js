@@ -1,74 +1,92 @@
-const Project = require('../../models/Project');
-const User = require('../../models/User');
+const { Project } = require('../models');
 
-// Créer un nouveau projet
-exports.createProject = async (req, res) => {
+const projectController = {
+  async getAllProjects(req, res) {
     try {
-        const { title, description } = req.body;
-        const project = await Project.create({ title, description, ownerId: req.user.id });
-        res.status(201).json({ message: 'Projet créé', project });
-    } catch (err) {
-        res.status(500).json({ error: 'Erreur lors de la création du projet' });
+      const projects = await Project.findAll({
+        where: { UserId: req.user.id }
+      });
+      res.json(projects);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des projets:', error);
+      res.status(500).json({ message: 'Erreur serveur' });
     }
-};
+  },
 
-// Modifier un projet existant
-exports.updateProject = async (req, res) => {
+  async getProjectById(req, res) {
     try {
-        const { projectId } = req.params;
-        const { title, description } = req.body;
-        const project = await Project.findByPk(projectId);
-        if (project && project.ownerId === req.user.id) {
-            project.update({ title, description });
-            res.json({ message: 'Projet mis à jour', project });
-        } else {
-            res.status(403).json({ error: 'Non autorisé' });
+      const project = await Project.findOne({
+        where: { 
+          id: req.params.id,
+          UserId: req.user.id
         }
-    } catch (err) {
-        res.status(500).json({ error: 'Erreur lors de la mise à jour du projet' });
+      });
+      
+      if (!project) {
+        return res.status(404).json({ message: 'Projet non trouvé' });
+      }
+      
+      res.json(project);
+    } catch (error) {
+      console.error('Erreur lors de la récupération du projet:', error);
+      res.status(500).json({ message: 'Erreur serveur' });
     }
-};
+  },
 
-// Supprimer un projet
-exports.deleteProject = async (req, res) => {
+  async createProject(req, res) {
     try {
-        const { projectId } = req.params;
-        const project = await Project.findByPk(projectId);
-        if (project && project.ownerId === req.user.id) {
-            await project.destroy();
-            res.json({ message: 'Projet supprimé' });
-        } else {
-            res.status(403).json({ error: 'Non autorisé' });
+      const project = await Project.create({
+        ...req.body,
+        UserId: req.user.id
+      });
+      res.status(201).json(project);
+    } catch (error) {
+      console.error('Erreur lors de la création du projet:', error);
+      res.status(500).json({ message: 'Erreur serveur' });
+    }
+  },
+
+  async updateProject(req, res) {
+    try {
+      const project = await Project.findOne({
+        where: { 
+          id: req.params.id,
+          UserId: req.user.id
         }
-    } catch (err) {
-        res.status(500).json({ error: 'Erreur lors de la suppression du projet' });
+      });
+
+      if (!project) {
+        return res.status(404).json({ message: 'Projet non trouvé' });
+      }
+
+      await project.update(req.body);
+      res.json(project);
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du projet:', error);
+      res.status(500).json({ message: 'Erreur serveur' });
     }
+  },
+
+  async deleteProject(req, res) {
+    try {
+      const project = await Project.findOne({
+        where: { 
+          id: req.params.id,
+          UserId: req.user.id
+        }
+      });
+
+      if (!project) {
+        return res.status(404).json({ message: 'Projet non trouvé' });
+      }
+
+      await project.destroy();
+      res.status(204).send();
+    } catch (error) {
+      console.error('Erreur lors de la suppression du projet:', error);
+      res.status(500).json({ message: 'Erreur serveur' });
+    }
+  }
 };
 
-// Ajouter ou supprimer des membres dans un projet
-exports.manageMembers = async (req, res) => {
-    try {
-        // Logique pour ajouter ou supprimer des membres
-    } catch (err) {
-        res.status(500).json({ error: 'Erreur lors de la gestion des membres' });
-    }
-};
-
-// Promouvoir un membre en administrateur
-exports.promoteMember = async (req, res) => {
-    try {
-        // Logique pour promouvoir un membre en administrateur
-    } catch (err) {
-        res.status(500).json({ error: 'Erreur lors de la promotion' });
-    }
-};
-
-exports.uploadFile = async (req, res) => {
-    try {
-        const { projectId } = req.params;
-        const file = req.file;
-        res.json({ message: 'Fichier téléchargé', file });
-    } catch (err) {
-        res.status(500).json({ error: 'Erreur lors du téléchargement du fichier' });
-    }
-};
+module.exports = projectController;

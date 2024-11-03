@@ -1,27 +1,27 @@
-const express = require('express');
-const cors = require('cors');
-const sequelize = require('./config/db');
-const userRoutes = require('./routes/userRoutes');
-const app = express();
+const { Sequelize } = require('sequelize');
+require('dotenv').config();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: 'postgres',
+  logging: false,
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  }
+});
 
-// Routes
-app.use('/api/users', userRoutes);
+// Test de la connexion
+async function testConnection() {
+  try {
+    await sequelize.authenticate();
+    console.log('Connexion à la base de données réussie!');
+  } catch (error) {
+    console.error('Impossible de se connecter à la base de données:', error);
+  }
+}
 
-// Synchronisation de la base de données
-sequelize.sync({ force: false })
-  .then(() => {
-    console.log('Base de données synchronisée');
-    
-    // Démarrage du serveur
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-      console.log(`Serveur démarré sur le port ${PORT}`);
-    });
-  })
-  .catch(err => {
-    console.error('Erreur de synchronisation de la base de données:', err);
-  });
+testConnection();
+
+module.exports = sequelize;
