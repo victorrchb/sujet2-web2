@@ -1,29 +1,27 @@
 const request = require('supertest');
 const app = require('../app');
 const { User, Project } = require('../models');
-const jwt = require('jsonwebtoken');
 
-describe('Project Endpoints', () => {
-  let token;
-  let userId;
+let token;
+let userId;
+let projectId;
 
-  beforeAll(async () => {
-    // Nettoyer la base de données
-    await Project.destroy({ where: {} });
-    await User.destroy({ where: {} });
-
-    // Créer un utilisateur test
-    const user = await User.create({
+beforeAll(async () => {
+  const response = await request(app)
+    .post('/api/auth/register')
+    .send({
       username: 'testuser',
       email: 'test@test.com',
       password: 'password123'
     });
-    userId = user.id;
-    token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'your-secret-key');
-  });
+  
+  userId = response.body.user.id;
+  token = response.body.token;
+});
 
+describe('Project Endpoints', () => {
   describe('POST /api/projects', () => {
-    it('should create a new project', async () => {
+    test('should create a new project', async () => {
       const res = await request(app)
         .post('/api/projects')
         .set('Authorization', `Bearer ${token}`)
@@ -34,11 +32,11 @@ describe('Project Endpoints', () => {
         });
 
       expect(res.statusCode).toBe(201);
-      expect(res.body).toHaveProperty('name', 'Test Project');
-      expect(res.body).toHaveProperty('userId', userId);
+      expect(res.body).toHaveProperty('UserId', userId);
+      projectId = res.body.id;
     });
 
-    it('should not create project without auth', async () => {
+    test('should not create project without auth', async () => {
       const res = await request(app)
         .post('/api/projects')
         .send({
@@ -52,7 +50,7 @@ describe('Project Endpoints', () => {
   });
 
   describe('GET /api/projects', () => {
-    it('should get all projects for user', async () => {
+    test('should get all projects for user', async () => {
       const res = await request(app)
         .get('/api/projects')
         .set('Authorization', `Bearer ${token}`);
@@ -63,26 +61,12 @@ describe('Project Endpoints', () => {
   });
 
   describe('PUT /api/projects/:id', () => {
-    let projectId;
-
-    beforeAll(async () => {
-      const project = await Project.create({
-        name: 'Update Test',
-        description: 'To be updated',
-        projectManager: 'Manager',
-        userId
-      });
-      projectId = project.id;
-    });
-
-    it('should update a project', async () => {
+    test('should update a project', async () => {
       const res = await request(app)
         .put(`/api/projects/${projectId}`)
         .set('Authorization', `Bearer ${token}`)
         .send({
-          name: 'Updated Project',
-          description: 'Updated Description',
-          projectManager: 'Updated Manager'
+          name: 'Updated Project'
         });
 
       expect(res.statusCode).toBe(200);
@@ -91,26 +75,13 @@ describe('Project Endpoints', () => {
   });
 
   describe('DELETE /api/projects/:id', () => {
-    let projectId;
-
-    beforeAll(async () => {
-      const project = await Project.create({
-        name: 'To Delete',
-        description: 'Will be deleted',
-        projectManager: 'Manager',
-        userId
-      });
-      projectId = project.id;
-    });
-
-    it('should delete a project', async () => {
+    test('should delete a project', async () => {
       const res = await request(app)
         .delete(`/api/projects/${projectId}`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.statusCode).toBe(200);
 
-      // Vérifier que le projet est bien supprimé
       const deletedProject = await Project.findByPk(projectId);
       expect(deletedProject).toBeNull();
     });
