@@ -1,9 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
-
-const authRoutes = require('./routes/authRoutes');
-const projectRoutes = require('./routes/projectRoutes');
+const db = require('./models');
+const authRoutes = require('./routes/auth.routes');
+const projectRoutes = require('./routes/project.routes');
 
 const app = express();
 
@@ -14,7 +13,19 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
-});
+// Ne démarrer le serveur que si ce n'est pas un test
+if (process.env.NODE_ENV !== 'test') {
+  const PORT = process.env.PORT || 5000;
+  db.sequelize.sync()
+    .then(() => {
+      console.log('Base de données synchronisée');
+      app.listen(PORT, () => {
+        console.log(`Serveur démarré sur le port ${PORT}`);
+      });
+    })
+    .catch(err => {
+      console.error('Erreur de synchronisation:', err);
+    });
+}
+
+module.exports = app;
