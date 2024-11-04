@@ -4,8 +4,15 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 const authRoutes = require('./routes/auth.routes');
 const projectRoutes = require('./routes/project.routes');
-
 const app = express();
+
+const promBundle = require('express-prom-bundle');
+const metricsMiddleware = promBundle({
+  includeMethod: true,
+  includePath: true
+});
+
+app.use(metricsMiddleware);
 
 app.use(cors());
 app.use(express.json());
