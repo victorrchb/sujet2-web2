@@ -8,15 +8,26 @@ const sequelize = new Sequelize(
   {
     host: config.host,
     dialect: config.dialect,
-    logging: process.env.NODE_ENV === 'test' ? false : console.log
+    logging: console.log
   }
 );
 
-const User = require('./user')(sequelize);
-const Project = require('./project')(sequelize);
+// Test de connexion
+sequelize.authenticate()
+  .then(() => console.log('Connexion à la base de données réussie'))
+  .catch(err => console.error('Erreur de connexion à la base de données:', err));
+
+const User = require('./User')(sequelize);
+const Project = require('./Project')(sequelize);
 
 User.hasMany(Project);
 Project.belongsTo(User);
+
+if (process.env.NODE_ENV !== 'test') {
+  sequelize.sync()
+    .then(() => console.log('Tables synchronisées'))
+    .catch(err => console.error('Erreur de synchronisation:', err));
+}
 
 module.exports = {
   sequelize,

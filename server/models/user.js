@@ -1,4 +1,6 @@
-module.exports = (sequelize, DataTypes) => {
+const { DataTypes } = require('sequelize');
+
+module.exports = (sequelize) => {
   const User = sequelize.define('User', {
     username: {
       type: DataTypes.STRING,
@@ -18,13 +20,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     }
   });
-
-  User.associate = function(models) {
-    User.hasMany(models.Project, {
-      foreignKey: 'userId',
-      as: 'projects'
-    });
-  };
 
   return User;
 };

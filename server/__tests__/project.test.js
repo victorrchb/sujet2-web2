@@ -7,6 +7,8 @@ let userId;
 let projectId;
 
 beforeAll(async () => {
+  await User.destroy({ where: {} });
+  
   const response = await request(app)
     .post('/api/auth/register')
     .send({
@@ -15,25 +17,43 @@ beforeAll(async () => {
       password: 'password123'
     });
   
-  userId = response.body.user.id;
-  token = response.body.token;
+  if (response.body && response.body.user) {
+    userId = response.body.user.id;
+    token = response.body.token;
+  } else {
+    throw new Error('Failed to create test user');
+  }
 });
 
 describe('Project Endpoints', () => {
+  beforeEach(async () => {
+    await Project.destroy({ where: {} });
+    
+    const project = await request(app)
+      .post('/api/projects')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Test Project',
+        description: 'Test Description',
+        projectManager: 'Test Manager'
+      });
+    
+    projectId = project.body.id;
+  });
+
   describe('POST /api/projects', () => {
     test('should create a new project', async () => {
       const res = await request(app)
         .post('/api/projects')
         .set('Authorization', `Bearer ${token}`)
         .send({
-          name: 'Test Project',
+          name: 'Another Test Project',
           description: 'Test Description',
           projectManager: 'Test Manager'
         });
 
       expect(res.statusCode).toBe(201);
       expect(res.body).toHaveProperty('UserId', userId);
-      projectId = res.body.id;
     });
 
     test('should not create project without auth', async () => {
