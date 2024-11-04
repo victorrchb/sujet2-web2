@@ -1,46 +1,9 @@
-const router = require('express').Router();
+const express = require('express');
+const router = express.Router();
 const { Project } = require('../models');
-const auth = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
-/**
- * @swagger
- * /api/projects:
- *   get:
- *     summary: Récupère tous les projets
- *     security:
- *       - bearerAuth: []
- *   post:
- *     summary: Crée un nouveau projet
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - name
- *               - description
- *               - projectManager
- *             properties:
- *               name:
- *                 type: string
- *               description:
- *                 type: string
- *               projectManager:
- *                 type: string
- */
-router.get('/', auth, async (req, res) => {
-  try {
-    const projects = await Project.findAll({ where: { UserId: req.user.id } });
-    res.json(projects);
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la récupération des projets' });
-  }
-});
-
-router.post('/', auth, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const project = await Project.create({
       ...req.body,
@@ -48,40 +11,84 @@ router.post('/', auth, async (req, res) => {
     });
     res.status(201).json(project);
   } catch (error) {
-    res.status(400).json({ message: 'Erreur lors de la création du projet' });
+    console.error(error);
+    res.status(500).json({ message: error.message });
   }
 });
 
-/**
- * @swagger
- * /api/projects/{id}:
- *   delete:
- *     summary: Supprime un projet
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- */
-router.delete('/:id', auth, async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    const count = await Project.destroy({
+    const project = await Project.findOne({
       where: { 
-        id: req.params.id,
-        UserId: req.user.id
+        id: req.params.id
       }
     });
-    if (count > 0) {
-      res.status(200).json({ message: 'Projet supprimé avec succès' });
-    } else {
-      res.status(404).json({ message: 'Projet non trouvé' });
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
     }
+
+    const updatedProject = await project.update(req.body);
+    res.status(200).json(updatedProject);
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la suppression du projet' });
+    console.error(error);
+    res.status(500).json({ message: error.message });
   }
 });
+
+router.get('/', authenticateToken, async (req, res) => {
+    try {
+      const projects = await Project.findAll({
+        where: { 
+          UserId: req.user.id
+        },
+        order: [['createdAt', 'DESC']]
+      });
+      
+      res.status(200).json(projects);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+router.get('/:id', authenticateToken, async (req, res) => {
+    try {
+      const project = await Project.findOne({
+        where: { 
+          id: req.params.id
+        }
+      });
+  
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+  
+      res.status(200).json(project);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+router.delete('/:id', authenticateToken, async (req, res) => {
+    try {
+      const project = await Project.findOne({
+        where: { 
+          id: req.params.id
+        }
+      });
+  
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+  
+      await project.destroy();
+      res.status(200).json({ message: 'Project deleted successfully' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
 module.exports = router;
