@@ -1,21 +1,20 @@
-const { sequelize } = require('../models');
-require('dotenv').config({ path: '.env.test' });
+const app = require('../app');
+const db = require('../models');
+
+let server;
 
 beforeAll(async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('Test database connected');
-    await sequelize.sync({ force: true });
-  } catch (error) {
-    console.error('Test database connection error:', error);
-    process.exit(1);
-  }
+  server = await new Promise(resolve => {
+    server = app.listen(0, () => {
+      resolve(server);
+    });
+  });
+  await db.sequelize.sync();
 });
 
 afterAll(async () => {
-  await sequelize.close();
+  await db.sequelize.close();
+  await new Promise(resolve => server.close(resolve));
 });
 
-beforeEach(async () => {
-  await sequelize.truncate({ cascade: true });
-});
+module.exports = { server };
