@@ -1,109 +1,87 @@
-const router = require('express').Router();
+const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
+const router = express.Router();
 
-/**
- * @swagger
- * /api/auth/register:
- *   post:
- *     summary: Inscription d'un nouvel utilisateur
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - username
- *               - email
- *               - password
- *             properties:
- *               username:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- */
+// Route d'inscription
 router.post('/register', async (req, res) => {
   try {
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const { username, email, password } = req.body;
+
+    // Validation basique
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: 'Tous les champs sont requis' });
+    }
+
+    // Vérification si l'email est valide
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Format d\'email invalide' });
+    }
+
+    // Hash du mot de passe
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Création de l'utilisateur
     const user = await User.create({
-      username: req.body.username,
-      email: req.body.email,
+      username,
+      email,
       password: hashedPassword
     });
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    // Génération du token
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET || 'your_jwt_secret',
+      { expiresIn: '24h' }
+    );
 
-    res.status(201).json({
-      message: 'Utilisateur créé avec succès',
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      },
-      token
-    });
+    res.status(201).json({ token });
   } catch (error) {
-    console.error('Erreur détaillée:', error);
     if (error.name === 'SequelizeUniqueConstraintError') {
-      res.status(400).json({ 
+      return res.status(400).json({ 
         message: 'Cet utilisateur ou cet email existe déjà'
       });
-    } else {
-      res.status(400).json({ 
-        message: 'Erreur lors de la création de l\'utilisateur'
+    }
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({ 
+        message: 'Données invalides'
       });
     }
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
-/**
- * @swagger
- * /api/auth/login:
- *   post:
- *     summary: Connexion d'un utilisateur
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- */
+// Route de connexion
 router.post('/login', async (req, res) => {
   try {
-    const user = await User.findOne({ where: { email: req.body.email } });
+    const { email, password } = req.body;
+
+    // Recherche de l'utilisateur
+    const user = await User.findOne({ where: { email } });
+
+    // Vérification si l'utilisateur existe
     if (!user) {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     }
 
-    const validPassword = await bcrypt.compare(req.body.password, user.password);
+    // Vérification du mot de passe
+    const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     }
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    // Génération du token
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET || 'your_jwt_secret',
+      { expiresIn: '24h' }
+    );
 
-    res.json({
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      },
-      token
-    });
+    res.json({ token });
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la connexion' });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
